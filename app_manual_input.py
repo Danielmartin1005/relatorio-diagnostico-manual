@@ -2,7 +2,7 @@
 import streamlit as st
 import pandas as pd
 import jinja2
-import pdfkit
+from xhtml2pdf import pisa
 import tempfile
 import os
 
@@ -105,6 +105,7 @@ if st.button("📄 Gerar Relatório PDF"):
     )
 
     temp_pdf = tempfile.NamedTemporaryFile(delete=False, suffix=".pdf")
-    pdfkit.from_string(html_rendered, temp_pdf.name)
+    with open(temp_pdf.name, "w+b") as pdf_file:
+    pisa.CreatePDF(html_rendered, dest=pdf_file)
     with open(temp_pdf.name, "rb") as f:
         st.download_button("📥 Baixar PDF do Relatório", f, file_name=f"{nome}_relatorio.pdf")
