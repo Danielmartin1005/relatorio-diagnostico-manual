@@ -1,36 +1,86 @@
-
 <!DOCTYPE html>
-<html>
+<html lang="pt-br">
 <head>
-    <meta charset="utf-8">
-    <title>Relatório Diagnóstico</title>
-    <style>
-        body { font-family: Arial, sans-serif; padding: 30px; }
-        h2, h3 { color: #333; }
-        p { margin: 10px 0; line-height: 1.5; }
-    </style>
+  <meta charset="UTF-8">
+  <style>
+    body {
+      font-family: Arial, sans-serif;
+      margin: 30px;
+      font-size: 12pt;
+      color: #333;
+    }
+
+    .header {
+      text-align: center;
+      border-bottom: 2px solid #444;
+      padding-bottom: 10px;
+      margin-bottom: 30px;
+    }
+
+    .header h1 {
+      font-size: 20pt;
+      margin: 0;
+    }
+
+    .section-title {
+      font-size: 14pt;
+      font-weight: bold;
+      color: #2c3e50;
+      margin-top: 30px;
+      margin-bottom: 10px;
+    }
+
+    .info-box {
+      border: 1px solid #ccc;
+      padding: 10px;
+      margin-bottom: 15px;
+      background-color: #f9f9f9;
+    }
+
+    .info-line {
+      margin-bottom: 6px;
+    }
+
+    .highlight {
+      font-weight: bold;
+      color: #000;
+    }
+
+    .footer {
+      text-align: center;
+      margin-top: 40px;
+      font-size: 10pt;
+      color: #888;
+    }
+  </style>
 </head>
 <body>
-    <h2>Relatório Diagnóstico</h2>
-    <p><strong>Candidato:</strong> {{ nome }}</p>
-    <p><strong>Série:</strong> {{ turma }}</p>
 
-    <p>Este relatório tem como objetivo apresentar o desempenho do(a) aluno(a) {{ nome }} na avaliação diagnóstica, com foco nos conhecimentos essenciais para o acompanhamento da série {{ turma }}.</p>
+  <div class="header">
+    <h1>Relatório Diagnóstico Individual</h1>
+  </div>
 
-    <p>A avaliação foi estruturada para identificar pontos fortes e áreas de desenvolvimento, permitindo uma análise precisa do aprendizado nas disciplinas de língua portuguesa, matemática, história, geografia e ciências. Com base nos resultados, buscamos fornecer uma visão clara sobre o nível de compreensão do conteúdo e oferecer sugestões de apoio para o aprimoramento.</p>
+  <div class="info-box">
+    <div class="info-line"><span class="highlight">Nome do aluno:</span> {{ nome }}</div>
+    <div class="info-line"><span class="highlight">Turma:</span> {{ turma }}</div>
+    <div class="info-line"><span class="highlight">Total de acertos:</span> {{ acertos }} de {{ total }}</div>
+    <div class="info-line"><span class="highlight">Desempenho:</span> {{ desempenho }}%</div>
+    <div class="info-line"><span class="highlight">Nível de conhecimento:</span> {{ nivel }}</div>
+  </div>
 
-    <h3>Resultados da Avaliação:</h3>
-    <p><strong>Desempenho Geral:</strong> O(a) aluno(a) obteve um total de {{ total_acertos }} acertos, refletindo um desempenho de {{ percentual_acertos }} e apresentando um nível de conhecimento {{ nivel_geral }}.</p>
+  <div class="section-title">✅ Habilidades que o aluno já domina:</div>
+  <div class="info-box">
+    {{ habilidades_domina }}
+  </div>
 
-    <p><strong>Resumo Pedagógico:</strong> {{ resumo_pedagogico }}</p>
+  <div class="section-title">⚠️ Habilidades que precisam de atenção:</div>
+  <div class="info-box">
+    {{ habilidades_nao_domina }}
+  </div>
 
-    <p><strong>Áreas de Atenção:</strong> Identificamos que o(a) aluno(a) apresenta dificuldades em {{ pontos_atencao }}</p>
+  <div class="footer">
+    Relatório gerado automaticamente com base na análise das respostas e habilidades da BNCC.
+  </div>
 
-    <h3>Sugestões de Intervenção:</h3>
-    <p>{{ estrategias }}</p>
-
-    <p>Este relatório foi elaborado com o intuito de promover a melhoria contínua do aprendizado do(a) aluno(a) e facilitar o apoio das famílias no acompanhamento do desempenho escolar.</p>
-
-    <p>Estamos à disposição para esclarecer quaisquer dúvidas e auxiliar no que for necessário para o melhor desenvolvimento do(a) aluno(a).</p>
 </body>
 </html>
