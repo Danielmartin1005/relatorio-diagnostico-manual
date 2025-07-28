@@ -1,18 +1,49 @@
 import streamlit as st
 import pandas as pd
-import io
-import tempfile
 from jinja2 import Environment, FileSystemLoader
 from xhtml2pdf import pisa
+import tempfile
 import os
+from io import BytesIO
 
-st.set_page_config(page_title="Relatório Diagnóstico Individual", layout="centered")
+# Função para converter HTML em PDF
+def converter_html_para_pdf(source_html, output_filename):
+    with open(output_filename, "w+b") as result_file:
+        pisa_status = pisa.CreatePDF(source_html, dest=result_file)
+    return not pisa_status.err
 
+# Função para gerar HTML do relatório
+def gerar_html_relatorio(nome_aluno, turma, total_acertos, desempenho, nivel, habilidades_domina, habilidades_atencao):
+    template_env = Environment(loader=FileSystemLoader(searchpath="./"))
+    template = template_env.get_template("relatorio_template.html")
+
+    html_content = template.render(
+        nome_aluno=nome_aluno,
+        turma=turma,
+        total_acertos=total_acertos,
+        desempenho=desempenho,
+        nivel=nivel,
+        habilidades_domina=habilidades_domina,
+        habilidades_atencao=habilidades_atencao
+    )
+
+    return html_content
+
+# Função para definir nível de conhecimento
+def definir_nivel_conhecimento(desempenho):
+    if desempenho == 100:
+        return "Avançado"
+    elif desempenho >= 75:
+        return "Intermediário"
+    elif desempenho >= 50:
+        return "Básico"
+    else:
+        return "Muito básico"
+
+# App Streamlit
 st.title("📄 Relatório Diagnóstico Individual")
 
-st.markdown("""
-Preencha os dados abaixo e envie os arquivos para gerar o relatório individual com base na régua de análise diagnóstica.
-""")
+st.markdown("Preencha os dados abaixo e envie os arquivos para gerar o relatório individual com base na régua de análise diagnóstica.")
 
 nome_aluno = st.text_input("Nome do aluno")
 turma = st.text_input("Turma")
@@ -21,75 +52,58 @@ arquivo_regua = st.file_uploader("Envie o arquivo .CSV com a régua diagnóstica
 
 if st.button("Gerar Relatório"):
     if not nome_aluno or not turma or not respostas_texto or not arquivo_regua:
-        st.warning("Por favor, preencha todos os campos e envie o arquivo da régua diagnóstica.")
+        st.warning("⚠️ Por favor, preencha todos os campos e envie o arquivo CSV.")
     else:
-        # Padroniza e separa as respostas do aluno
-        respostas_aluno = [resp.strip().upper() for resp in respostas_texto.split(",")]
+        try:
+            respostas = [r.strip().upper() for r in respostas_texto.split(",")]
 
-        # Carrega a régua diagnóstica
-        regua_df = pd.read_csv(arquivo_regua)
+            regua_df = pd.read_csv(arquivo_regua)
 
-        # Inicializa contadores
-        total_questoes = len(respostas_aluno)
-        total_acertos = 0
-        habilidades_domina = []
-        habilidades_atencao = []
+            # Padroniza os nomes das colunas
+            regua_df.columns = [col.strip().lower().replace("ç", "c").replace("ã", "a").replace("á", "a") for col in regua_df.columns]
 
-        for i, resposta_aluno in enumerate(respostas_aluno):
-            num_questao = i + 1
+            total_questoes = len(respostas)
+            acertos = 0
+            habilidades_domina = []
+            habilidades_atencao = []
 
-            linha = regua_df[regua_df["Questao"] == num_questao]
+            for i, resposta in enumerate(respostas):
+                num_questao = i + 1
+                linha = regua_df[regua_df["questao"] == num_questao]
 
-            if not linha.empty:
-                alternativa_correta = linha.iloc[0]["Alternativa correta"]
-                habilidade = linha.iloc[0]["Conteúdo"]
+                if not linha.empty:
+                    alternativa_correta = linha.iloc[0]["alternativa correta"].strip().upper()
+                    habilidade = linha.iloc[0]["conteudo"]
 
-                if str(resposta_aluno).strip().upper() == str(alternativa_correta).strip().upper():
-                    total_acertos += 1
-                    habilidades_domina.append(habilidade)
-                else:
-                    habilidades_atencao.append(habilidade)
+                    if resposta == alternativa_correta:
+                        acertos += 1
+                        habilidades_domina.append(habilidade)
+                    else:
+                        habilidades_atencao.append(habilidade)
 
-        desempenho = (total_acertos / total_questoes) * 100 if total_questoes > 0 else 0
+            desempenho = round((acertos / total_questoes) * 100, 1)
+            nivel = definir_nivel_conhecimento(desempenho)
 
-        if desempenho >= 80:
-            nivel_conhecimento = "Avançado"
-        elif desempenho >= 60:
-            nivel_conhecimento = "Intermediário"
-        elif desempenho >= 40:
-            nivel_conhecimento = "Básico"
-        else:
-            nivel_conhecimento = "Muito básico"
-
-        habilidades_domina = list(set(habilidades_domina))
-        habilidades_atencao = list(set(habilidades_atencao))
-
-        # Carrega template
-        env = Environment(loader=FileSystemLoader("."))  # Atualize se estiver em subpasta
-        template = env.get_template("relatorio_template.html")
-
-        html_rendered = template.render(
-            nome_aluno=nome_aluno,
-            turma=turma,
-            total_acertos=total_acertos,
-            total_questoes=total_questoes,
-            desempenho=f"{desempenho:.1f}",
-            nivel_conhecimento=nivel_conhecimento,
-            habilidades_domina=habilidades_domina,
-            habilidades_atencao=habilidades_atencao
-        )
-
-        # Gera PDF
-        with tempfile.NamedTemporaryFile(delete=False, suffix=".pdf") as tmp_pdf:
-            pisa.CreatePDF(io.StringIO(html_rendered), dest=tmp_pdf)
-            tmp_pdf_path = tmp_pdf.name
-
-        with open(tmp_pdf_path, "rb") as file:
-            st.download_button(
-                label="📥 Baixar Relatório PDF",
-                data=file,
-                file_name=f"relatorio_{nome_aluno.replace(' ', '_')}.pdf",
-                mime="application/pdf"
+            html_relatorio = gerar_html_relatorio(
+                nome_aluno,
+                turma,
+                f"{acertos} de {total_questoes}",
+                f"{desempenho}%",
+                nivel,
+                habilidades_domina,
+                habilidades_atencao
             )
 
-        os.remove(tmp_pdf_path)
+            with tempfile.NamedTemporaryFile(delete=False, suffix=".pdf") as tmp_pdf:
+                converter_html_para_pdf(html_relatorio, tmp_pdf.name)
+                tmp_pdf.seek(0)
+                st.success("✅ Relatório gerado com sucesso!")
+                st.download_button(
+                    label="📥 Baixar Relatório PDF",
+                    data=tmp_pdf.read(),
+                    file_name=f"relatorio_{nome_aluno.replace(' ', '_')}.pdf",
+                    mime="application/pdf"
+                )
+
+        except Exception as e:
+            st.error(f"Erro ao gerar relatório: {e}")
