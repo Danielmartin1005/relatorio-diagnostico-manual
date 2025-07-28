@@ -1,108 +1,88 @@
-
 import streamlit as st
 import pandas as pd
-import jinja2
+from jinja2 import Environment, FileSystemLoader
 from xhtml2pdf import pisa
-import tempfile
+import io
 import os
 
-# Embutir a régua de diagnóstico
-regua = pd.DataFrame([
-    {"Série": "6º Ano", "Questão": "Q1", "Alternativa marcada": "A", "Nível de conhecimento do estudante": "Avançado", "Possível causa do erro": "Alternativa correta", "Estratégia de intervenção": "Propor novas leituras de HQs visuais e atividades de análise de imagem.", "Habilidades necessárias (BNCC)": "EF06LP12"},
-    {"Série": "6º Ano", "Questão": "Q1", "Alternativa marcada": "B", "Nível de conhecimento do estudante": "Intermediário", "Possível causa do erro": "Leitura incompleta do enunciado", "Estratégia de intervenção": "Trabalhar leitura de imagens, interpretação de cenas.", "Habilidades necessárias (BNCC)": "EF06LP12"},
-    {"Série": "6º Ano", "Questão": "Q1", "Alternativa marcada": "C", "Nível de conhecimento do estudante": "Básico", "Possível causa do erro": "Confusão entre texto verbal e não verbal", "Estratégia de intervenção": "Comparar tirinhas com e sem texto verbal", "Habilidades necessárias (BNCC)": "EF06LP12"},
-    {"Série": "6º Ano", "Questão": "Q1", "Alternativa marcada": "D", "Nível de conhecimento do estudante": "Muito básico / Inicial", "Possível causa do erro": "Dificuldade em reconhecer sequência narrativa", "Estratégia de intervenção": "Explorar sequência de eventos visuais", "Habilidades necessárias (BNCC)": "EF06LP12"},
-    {"Série": "6º Ano", "Questão": "Q2", "Alternativa marcada": "A", "Nível de conhecimento do estudante": "Avançado", "Possível causa do erro": "Alternativa correta", "Estratégia de intervenção": "Ampliar com produções de receitas.", "Habilidades necessárias (BNCC)": "EF05LP18"},
-    {"Série": "6º Ano", "Questão": "Q3", "Alternativa marcada": "B", "Nível de conhecimento do estudante": "Avançado", "Possível causa do erro": "Alternativa correta", "Estratégia de intervenção": "", "Habilidades necessárias (BNCC)": "EF05LP15"},
-    {"Série": "6º Ano", "Questão": "Q4", "Alternativa marcada": "D", "Nível de conhecimento do estudante": "Avançado", "Possível causa do erro": "Alternativa correta", "Estratégia de intervenção": "", "Habilidades necessárias (BNCC)": "EF05LP16"},
-    {"Série": "6º Ano", "Questão": "Q5", "Alternativa marcada": "B", "Nível de conhecimento do estudante": "Avançado", "Possível causa do erro": "Alternativa correta", "Estratégia de intervenção": "", "Habilidades necessárias (BNCC)": "EF05LP17"},
-])
+# --- REGUA EMBUTIDA (exemplo com 5 questões) ---
+regua_embutida = pd.DataFrame({
+    "Série": ["6º ano"] * 5,
+    "Questão": ["Q1", "Q2", "Q3", "Q4", "Q5"],
+    "Alternativa marcada": ["A", "B", "C", "D", "A"],
+    "Nível de conhecimento": ["Muito básico", "Básico", "Intermediário", "Avançado", "Básico"],
+    "Habilidade BNCC": [
+        "EF15LP01", "EF05MA07", "EF15CI09", "EF06GE01", "EF05HI03"
+    ]
+})
 
-def classificar_nivel(percentual):
-    if percentual >= 85: return "Avançado"
-    elif percentual >= 65: return "Intermediário"
-    elif percentual >= 40: return "Básico"
-    return "Muito básico / Requer apoio"
+# --- CONFIGURAÇÕES INICIAIS ---
+st.set_page_config(page_title="Relatório Diagnóstico", layout="centered")
 
-def classificar_habilidade(h):
-    if pd.isna(h): return "Outros"
-    if h.startswith("EF06LP") or h.startswith("EF67LP") or h.startswith("EF05LP"):
-        return "Leitura e interpretação de texto"
-    return "Outros"
+st.title("📋 Relatório Diagnóstico Manual")
 
-def gerar_resumo(nivel, habilidades):
-    dom = ", ".join(sorted(set(map(classificar_habilidade, habilidades))))
-    if nivel == "Avançado":
-        return f"O aluno demonstra domínio em {dom}, estando apto a acompanhar a turma."
-    elif nivel == "Intermediário":
-        return f"O aluno apresenta desempenho satisfatório em {dom}, com condições de acompanhar a turma, mas precisa de reforço em pontos específicos."
-    elif nivel == "Básico":
-        return f"O aluno tem conhecimentos iniciais em {dom}, sendo necessário um acompanhamento mais próximo e atividades de reforço."
-    else:
-        return f"O aluno apresenta dificuldades significativas nas competências avaliadas. Será necessário um plano individual de apoio focado em {dom}."
+with st.form("formulario"):
+    nome = st.text_input("Nome do aluno")
+    turma = st.selectbox("Série", regua_embutida["Série"].unique())
 
-st.set_page_config("Diagnóstico Individual")
-st.title("📘 Gerador de Relatório Diagnóstico")
+    respostas = {}
+    for q in regua_embutida["Questão"].unique():
+        respostas[q] = st.selectbox(f"{q}", ["A", "B", "C", "D"], key=q)
 
-nome = st.text_input("Nome do aluno")
-turma = st.selectbox("Série", ["6º Ano"])
-respostas = {}
+    gerar = st.form_submit_button("Gerar Relatório")
 
-st.markdown("### 📝 Respostas do aluno")
-for q in ["Q1", "Q2", "Q3", "Q4", "Q5"]:
-    respostas[q] = st.radio(f"{q} - Marque a alternativa:", ["A", "B", "C", "D"], key=q)
-
-if st.button("📄 Gerar Relatório PDF"):
-    total = 0
+# --- GERAÇÃO DO RELATÓRIO ---
+if gerar:
     acertos = 0
-    habilidades = []
-    niveis = []
-    estrategias = []
+    total = 0
+    habilidades_domina = []
+    habilidades_atencao = []
 
     for q, resp in respostas.items():
-        entrada = regua[
-            (regua["Série"] == turma) &
-            (regua["Questão"] == q) &
-            (regua["Alternativa marcada"] == resp)
+        total += 1  # ← Agora conta todas as questões
+        entrada = regua_embutida[
+            (regua_embutida["Série"] == turma) &
+            (regua_embutida["Questão"] == q) &
+            (regua_embutida["Alternativa marcada"] == resp)
         ]
         if not entrada.empty:
-            total += 1
             e = entrada.iloc[0]
-            nivel = e["Nível de conhecimento do estudante"]
-            if "avançado" in nivel.lower() or e["Possível causa do erro"].lower() == "alternativa correta":
-                acertos += 1
-            niveis.append(nivel)
-            habilidades.append(e["Habilidades necessárias (BNCC)"])
-            if pd.notna(e["Estratégia de intervenção"]) and nivel.lower() != "avançado":
-                estrategias.append(e["Estratégia de intervenção"])
+            if e["Nível de conhecimento"] in ["Avançado", "Intermediário"]:
+                habilidades_domina.append(e["Habilidade BNCC"])
+            else:
+                habilidades_atencao.append(e["Habilidade BNCC"])
+            acertos += 1
+        else:
+            habilidades_atencao.append("Habilidade não identificada para " + q)
 
-    percentual = (acertos / total) * 100 if total else 0
-    nivel_geral = classificar_nivel(percentual)
-    resumo = gerar_resumo(nivel_geral, habilidades)
-    pontos_atencao = ", ".join(sorted(set(
-        classificar_habilidade(h) for i, h in enumerate(habilidades)
-        if "básico" in niveis[i].lower() or "muito" in niveis[i].lower()
-    )))
-    estrategias_texto = " | ".join(sorted(set(estrategias)))
+    percentual = int((acertos / total) * 100) if total > 0 else 0
 
-    template_loader = jinja2.FileSystemLoader(searchpath=".")
-    template_env = jinja2.Environment(loader=template_loader)
+    if percentual >= 80:
+        nivel = "Avançado"
+    elif percentual >= 50:
+        nivel = "Intermediário"
+    else:
+        nivel = "Inicial"
+
+    resumo = f"O aluno {nome} demonstrou desempenho **{nivel}**, com {acertos} de {total} acertos ({percentual}%)."
+    if habilidades_domina:
+        resumo += f"\n\n✅ Domina as habilidades: {', '.join(habilidades_domina)}"
+    if habilidades_atencao:
+        resumo += f"\n\n⚠️ Necessita atenção nas habilidades: {', '.join(habilidades_atencao)}"
+
+    # --- GERAÇÃO DO PDF COM JINJA2 + xhtml2pdf ---
+    template_env = Environment(loader=FileSystemLoader(searchpath="./"))
     template = template_env.get_template("relatorio_template.html")
 
     html_rendered = template.render(
         nome=nome,
         turma=turma,
-        total_acertos=acertos,
-        percentual_acertos=f"{percentual:.1f}%",
-        nivel_geral=nivel_geral,
-        resumo_pedagogico=resumo,
-        pontos_atencao=pontos_atencao,
-        estrategias=estrategias_texto
+        resumo=resumo.replace("\n", "<br>")
     )
 
-    temp_pdf = tempfile.NamedTemporaryFile(delete=False, suffix=".pdf")
-    with open(temp_pdf.name, "w+b") as pdf_file:
-        pisa.CreatePDF(html_rendered, dest=pdf_file)
+    pdf_file = io.BytesIO()
+    pisa.CreatePDF(io.StringIO(html_rendered), dest=pdf_file)
+    pdf_file.seek(0)
 
-    with open(temp_pdf.name, "rb") as f:
-        st.download_button("📥 Baixar PDF do Relatório", f, file_name=f"{nome}_relatorio.pdf")
+    st.success("✅ Relatório gerado com sucesso!")
+    st.download_button("📄 Baixar Relatório PDF", data=pdf_file, file_name=f"relatorio_{nome}.pdf")
