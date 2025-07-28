@@ -1,0 +1,36 @@
+
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="utf-8">
+    <title>Relatório Diagnóstico</title>
+    <style>
+        body { font-family: Arial, sans-serif; padding: 30px; }
+        h2, h3 { color: #333; }
+        p { margin: 10px 0; line-height: 1.5; }
+    </style>
+</head>
+<body>
+    <h2>Relatório Diagnóstico</h2>
+    <p><strong>Candidato:</strong> {{ nome }}</p>
+    <p><strong>Série:</strong> {{ turma }}</p>
+
+    <p>Este relatório tem como objetivo apresentar o desempenho do(a) aluno(a) {{ nome }} na avaliação diagnóstica, com foco nos conhecimentos essenciais para o acompanhamento da série {{ turma }}.</p>
+
+    <p>A avaliação foi estruturada para identificar pontos fortes e áreas de desenvolvimento, permitindo uma análise precisa do aprendizado nas disciplinas de língua portuguesa, matemática, história, geografia e ciências. Com base nos resultados, buscamos fornecer uma visão clara sobre o nível de compreensão do conteúdo e oferecer sugestões de apoio para o aprimoramento.</p>
+
+    <h3>Resultados da Avaliação:</h3>
+    <p><strong>Desempenho Geral:</strong> O(a) aluno(a) obteve um total de {{ total_acertos }} acertos, refletindo um desempenho de {{ percentual_acertos }} e apresentando um nível de conhecimento {{ nivel_geral }}.</p>
+
+    <p><strong>Resumo Pedagógico:</strong> {{ resumo_pedagogico }}</p>
+
+    <p><strong>Áreas de Atenção:</strong> Identificamos que o(a) aluno(a) apresenta dificuldades em {{ pontos_atencao }}</p>
+
+    <h3>Sugestões de Intervenção:</h3>
+    <p>{{ estrategias }}</p>
+
+    <p>Este relatório foi elaborado com o intuito de promover a melhoria contínua do aprendizado do(a) aluno(a) e facilitar o apoio das famílias no acompanhamento do desempenho escolar.</p>
+
+    <p>Estamos à disposição para esclarecer quaisquer dúvidas e auxiliar no que for necessário para o melhor desenvolvimento do(a) aluno(a).</p>
+</body>
+</html>
