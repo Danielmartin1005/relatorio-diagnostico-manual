@@ -1,86 +1,102 @@
 <!DOCTYPE html>
-<html lang="pt-br">
+<html lang="pt-BR">
 <head>
-  <meta charset="UTF-8">
-  <style>
-    body {
-      font-family: Arial, sans-serif;
-      margin: 30px;
-      font-size: 12pt;
-      color: #333;
-    }
+    <meta charset="UTF-8">
+    <title>Relatório Diagnóstico</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            font-size: 13px;
+            margin: 40px;
+        }
 
-    .header {
-      text-align: center;
-      border-bottom: 2px solid #444;
-      padding-bottom: 10px;
-      margin-bottom: 30px;
-    }
+        h1 {
+            text-align: center;
+            font-size: 20px;
+            margin-bottom: 20px;
+        }
 
-    .header h1 {
-      font-size: 20pt;
-      margin: 0;
-    }
+        p {
+            margin: 4px 0;
+        }
 
-    .section-title {
-      font-size: 14pt;
-      font-weight: bold;
-      color: #2c3e50;
-      margin-top: 30px;
-      margin-bottom: 10px;
-    }
+        .secao {
+            margin-top: 20px;
+        }
 
-    .info-box {
-      border: 1px solid #ccc;
-      padding: 10px;
-      margin-bottom: 15px;
-      background-color: #f9f9f9;
-    }
+        .subtitulo {
+            font-weight: bold;
+            color: #1a1a1a;
+            font-size: 14px;
+            margin-top: 10px;
+        }
 
-    .info-line {
-      margin-bottom: 6px;
-    }
+        ul {
+            margin-top: 4px;
+            margin-left: 20px;
+            padding-left: 0;
+        }
 
-    .highlight {
-      font-weight: bold;
-      color: #000;
-    }
+        li {
+            margin-bottom: 3px;
+        }
 
-    .footer {
-      text-align: center;
-      margin-top: 40px;
-      font-size: 10pt;
-      color: #888;
-    }
-  </style>
+        .caixa {
+            border: 1px solid #ccc;
+            padding: 8px;
+            background-color: #f9f9f9;
+            margin-top: 5px;
+        }
+
+        .negrito {
+            font-weight: bold;
+        }
+
+        .footer {
+            margin-top: 30px;
+            font-size: 10px;
+            text-align: center;
+            color: #888;
+        }
+    </style>
 </head>
 <body>
-
-  <div class="header">
     <h1>Relatório Diagnóstico Individual</h1>
-  </div>
 
-  <div class="info-box">
-    <div class="info-line"><span class="highlight">Nome do aluno:</span> {{ nome }}</div>
-    <div class="info-line"><span class="highlight">Turma:</span> {{ turma }}</div>
-    <div class="info-line"><span class="highlight">Total de acertos:</span> {{ acertos }} de {{ total }}</div>
-    <div class="info-line"><span class="highlight">Desempenho:</span> {{ desempenho }}%</div>
-    <div class="info-line"><span class="highlight">Nível de conhecimento:</span> {{ nivel }}</div>
-  </div>
+    <p><span class="negrito">Nome do aluno:</span> {{ nome_aluno }}</p>
+    <p><span class="negrito">Turma:</span> {{ turma }}</p>
+    <p><span class="negrito">Total de acertos:</span> {{ total_acertos }}</p>
+    <p><span class="negrito">Desempenho:</span> {{ desempenho }}</p>
+    <p><span class="negrito">Nível de conhecimento:</span> {{ nivel }}</p>
 
-  <div class="section-title">✅ Habilidades que o aluno já domina:</div>
-  <div class="info-box">
-    {{ habilidades_domina }}
-  </div>
+    <div class="secao">
+        <p class="subtitulo">■ Habilidades que o aluno já domina:</p>
+        {% if habilidades_domina %}
+            <ul>
+            {% for habilidade in habilidades_domina %}
+                <li>{{ habilidade }}</li>
+            {% endfor %}
+            </ul>
+        {% else %}
+            <div class="caixa">Nenhuma habilidade evidenciada</div>
+        {% endif %}
+    </div>
 
-  <div class="section-title">⚠️ Habilidades que precisam de atenção:</div>
-  <div class="info-box">
-    {{ habilidades_nao_domina }}
-  </div>
+    <div class="secao">
+        <p class="subtitulo">■■ Habilidades que precisam de atenção:</p>
+        {% if habilidades_atencao %}
+            <ul>
+            {% for habilidade in habilidades_atencao %}
+                <li>{{ habilidade }}</li>
+            {% endfor %}
+            </ul>
+        {% else %}
+            <div class="caixa">Nenhuma habilidade crítica identificada</div>
+        {% endif %}
+    </div>
 
-  <div class="footer">
-    Relatório gerado automaticamente com base na análise das respostas e habilidades da BNCC.
-  </div>
-
+    <div class="footer">
+        Relatório gerado automaticamente com base na análise das respostas e habilidades da BNCC.
+    </div>
 </body>
 </html>
