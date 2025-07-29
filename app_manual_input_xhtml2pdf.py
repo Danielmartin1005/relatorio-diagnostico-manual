@@ -1,95 +1,28 @@
-import streamlit as st
-import pandas as pd
-from jinja2 import Environment, FileSystemLoader
-from xhtml2pdf import pisa
-import tempfile
-import os
+import streamlit as st import pandas as pd import tempfile from io import BytesIO from xhtml2pdf import pisa from PIL import Image import base64
 
-# Título do app
-st.set_page_config(page_title="Relatório Diagnóstico", layout="centered")
-st.title("📄 Relatório Diagnóstico Individual")
+st.set_page_config(page_title="Relatório Diagnóstico", layout="centered") st.title("📈 Relatório Diagnóstico Personalizado") st.markdown("Preencha os dados abaixo e envie os arquivos para gerar o relatório individual com base na régua de análise diagnóstica.")
 
-# Inputs do usuário
-nome_aluno = st.text_input("Nome do aluno", placeholder="Ex: João da Silva")
-turma = st.text_input("Turma", placeholder="Ex: 6º Ano A")
-respostas_str = st.text_input("Respostas do aluno (ex: A,B,C,D,A...)", placeholder="Ex: A,B,C,D,A")
+nome_aluno = st.text_input("Nome do aluno") turma = st.text_input("Turma") respostas = st.text_input("Respostas do aluno (ex: A,B,C,D,A...)") arquivo_regua = st.file_uploader("Envie o arquivo .CSV com a régua diagnóstica", type=["csv"]) arquivo_logo = st.file_uploader("Deseja adicionar o logotipo da escola? (PNG/JPG)", type=["png", "jpg", "jpeg"])
 
-arquivo_csv = st.file_uploader("Envie o arquivo .CSV com a régua diagnóstica", type=["csv"])
+def calcular_nivel_conhecimento(porcentagem): if porcentagem >= 80: return "Avançado" elif porcentagem >= 60: return "Intermediário" elif porcentagem >= 40: return "Básico" else: return "Muito básico / Requer apoio"
 
-def gerar_relatorio_pdf(contexto):
-    env = Environment(loader=FileSystemLoader("."))
-    template = env.get_template("relatorio_template.html")
-    html_content = template.render(contexto)
+def gerar_html(relatorio, logo_b64): html = f""" <html> <head><meta charset='utf-8'></head> <body style='font-family: Arial;'> <div style='display: flex; justify-content: space-between; align-items: center;'> <h2>Relatório Diagnóstico Individual</h2> {'<img src="data:image/png;base64,' + logo_b64 + '" style="height: 60px;">' if logo_b64 else ''} </div> <p><strong>Nome do aluno:</strong> {relatorio['nome']}</p> <p><strong>Turma:</strong> {relatorio['turma']}</p> <p><strong>Total de acertos:</strong> {relatorio['acertos']}</p> <p><strong>Desempenho:</strong> {relatorio['desempenho']}%</p> <p><strong>Nível de conhecimento:</strong> {relatorio['nivel']}</p>
 
-    with tempfile.NamedTemporaryFile(delete=False, suffix=".pdf") as pdf_file:
-        pisa.CreatePDF(html_content, dest=pdf_file)
-        return pdf_file.name
+<p><strong>■ Habilidades que o aluno já domina:</strong></p>
+<ul>
+    {''.join(f'<li>{hab}</li>' for hab in relatorio['habilidades_domina']) if relatorio['habilidades_domina'] else '<li>Nenhuma habilidade evidenciada</li>'}
+</ul>
 
-# Botão para gerar relatório
-if st.button("Gerar Relatório"):
-    if not nome_aluno or not turma or not respostas_str or not arquivo_csv:
-        st.error("Por favor, preencha todos os campos e envie o arquivo CSV.")
-    else:
-        try:
-            # Ler CSV
-            regua_df = pd.read_csv(arquivo_csv)
+<p><strong>■■ Habilidades que precisam de atenção:</strong></p>
+<ul>
+    {''.join(f'<li>{hab}</li>' for hab in relatorio['habilidades_erro']) if relatorio['habilidades_erro'] else '<li>Nenhuma habilidade crítica identificada</li>'}
+</ul>
 
-            # Normalizar colunas
-            regua_df["Questao"] = regua_df["Questao"].astype(str).str.strip().str.upper()
-            regua_df["Alternativa"] = regua_df["Alternativa"].astype(str).str.strip().str.upper()
+<p style='font-size: small; color: gray;'>Relatório gerado automaticamente com base na análise das respostas e habilidades da BNCC.</p>
+</body>
+</html>
+"""
+return html
 
-            # Processar respostas
-            respostas_aluno = [r.strip().upper() for r in respostas_str.split(",")]
-            total_questoes = len(respostas_aluno)
-            acertos = 0
-            habilidades_domina = []
-            habilidades_atencao = []
+def converter_pdf(html):
 
-            for i, resposta in enumerate(respostas_aluno):
-                questao_id = f"Q{i+1}".upper()
-
-                linha_regua = regua_df[
-                    (regua_df["Questao"] == questao_id) & 
-                    (regua_df["Alternativa"] == resposta)
-                ]
-
-                if not linha_regua.empty:
-                    nivel = linha_regua["Nível de conhecimento do estudante"].values[0]
-                    habilidade = linha_regua["BNCC relacionada"].values[0]
-                    if nivel.strip().lower() in ["avançado", "fácil / avançado", "média / avançado"]:
-                        acertos += 1
-                        habilidades_domina.append(habilidade)
-                    else:
-                        habilidades_atencao.append(habilidade)
-                else:
-                    habilidades_atencao.append("Resposta não encontrada na régua")
-
-            desempenho = (acertos / total_questoes) * 100 if total_questoes > 0 else 0
-
-            if desempenho >= 80:
-                nivel_conhecimento = "Avançado"
-            elif desempenho >= 60:
-                nivel_conhecimento = "Intermediário"
-            elif desempenho >= 40:
-                nivel_conhecimento = "Básico"
-            else:
-                nivel_conhecimento = "Muito básico / Requer apoio"
-
-            contexto = {
-                "nome_aluno": nome_aluno,
-                "turma": turma,
-                "acertos": acertos,
-                "total_questoes": total_questoes,
-                "desempenho": f"{desempenho:.1f}%",
-                "nivel_conhecimento": nivel_conhecimento,
-                "habilidades_domina": list(set(habilidades_domina)) or ["Nenhuma habilidade evidenciada"],
-                "habilidades_atencao": list(set(habilidades_atencao)) or ["Nenhuma habilidade crítica identificada"],
-            }
-
-            pdf_path = gerar_relatorio_pdf(contexto)
-
-            with open(pdf_path, "rb") as f:
-                st.download_button("📥 Baixar Relatório PDF", f, file_name=f"relatorio_{nome_aluno}.pdf")
-
-        except Exception as e:
-            st.error(f"Erro ao gerar o relatório: {e}")
