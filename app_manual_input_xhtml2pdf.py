@@ -24,5 +24,52 @@ def gerar_html(relatorio, logo_b64): html = f""" <html> <head><meta charset='utf
 """
 return html
 
-def converter_pdf(html):
+def converter_pdf(html): pdf_file = BytesIO() pisa.CreatePDF(BytesIO(html.encode("utf-8")), dest=pdf_file) return pdf_file
+
+def tratar_logo(upload): if upload: imagem = Image.open(upload) imagem.thumbnail((150, 150))  # redimensionamento automático buffer = BytesIO() imagem.save(buffer, format="PNG") return base64.b64encode(buffer.getvalue()).decode("utf-8") return None
+
+if st.button("Gerar Relatório"): if not nome_aluno or not turma or not respostas or not arquivo_regua: st.error("Por favor, preencha todos os campos obrigatórios.") else: df = pd.read_csv(arquivo_regua, encoding="utf-8-sig") respostas_lista = [r.strip().upper() for r in respostas.split(",") if r.strip()] acertos = 0 habilidades_domina = [] habilidades_erro = []
+
+for i, resposta in enumerate(respostas_lista):
+        questao = f"Q{i+1}"
+        colunas_q = df[df["Questao"] == questao]
+
+        if colunas_q.empty:
+            habilidades_erro.append("Questão não encontrada na régua")
+            continue
+
+        linha_correta = colunas_q[colunas_q["Alternativa"] == resposta]
+        if not linha_correta.empty:
+            if linha_correta.iloc[0]["Nível de conhecimento do estudante"].strip().lower() == "correta":
+                acertos += 1
+                habilidades_domina.append(str(linha_correta.iloc[0]["BNCC relacionada"]))
+            else:
+                habilidades_erro.append(str(linha_correta.iloc[0]["BNCC relacionada"]))
+        else:
+            habilidades_erro.append("Resposta não encontrada na régua")
+
+    desempenho = round((acertos / len(respostas_lista)) * 100, 1) if respostas_lista else 0
+    nivel = calcular_nivel_conhecimento(desempenho)
+
+    relatorio = {
+        "nome": nome_aluno,
+        "turma": turma,
+        "acertos": acertos,
+        "desempenho": desempenho,
+        "nivel": nivel,
+        "habilidades_domina": habilidades_domina,
+        "habilidades_erro": habilidades_erro,
+    }
+
+    logo_b64 = tratar_logo(arquivo_logo)
+    html = gerar_html(relatorio, logo_b64)
+    pdf = converter_pdf(html)
+
+    st.success("Relatório gerado com sucesso!")
+    st.download_button(
+        label="💾 Baixar PDF do relatório",
+        data=pdf,
+        file_name=f"relatorio_{nome_aluno.replace(' ', '_')}.pdf",
+        mime="application/pdf",
+    )
 
